@@ -16,6 +16,8 @@ import time
 from email.message import EmailMessage
 import smtplib
 
+import ilock
+
 defaultUrl = 'kiosk-access.ilabsolutions.com'
 defaultPort = 22
 defaultTimeoutSecs = 10
@@ -24,7 +26,7 @@ defaultSender = 'mcahn@princeton.edu'
 defaultRecipients = ['mcahn@princeton.edu']
 defaultIterations = 0   # Forever-ish
 defaultFailureLimit = 5
-defaultWaitSecs = 120.0
+defaultWaitSecs = 60.0
 defaultLockDeviceFile = '/usr/local/etc/ilabsInterlockDevices'
 defaultLogFile = '/var/log/ilabs/ilabsMonitor.log'
 
@@ -32,7 +34,7 @@ dateFormat = '%Y-%m-%d %H:%M:%S'
 
 statusWord = {True : 'SUCCESSFUL', False : 'FAILED'} 
 
-def checkServer(url, port, timeout, opensecs):
+def checkConnection(url, port, timeout, opensecs):
     '''Try a connection to url on port.'''
     
     if timeout is not None:
@@ -49,13 +51,14 @@ def checkServer(url, port, timeout, opensecs):
     except socket.error as e:
         return False
 
-def sendEmail(sender, recipients, progName, subject, statusMsg):
+def sendEmail(sender, recipients, progName, subject, statusMsgs):
     msg = EmailMessage()
     msg['Subject'] = subject
     msg['To'] = ', '.join(recipients)
     msg['From'] = args.sender
 
-    body = ['This is an automated message from %s running on %s.' % (progName, socket.gethostname()), '', statusMsg]
+    body = ['This is an automated message from %s running on %s.' % (progName, socket.gethostname()), '']
+    body.extend(statusMsgs)
 
     msg.set_content('\n'.join(body))
 
@@ -64,13 +67,35 @@ def sendEmail(sender, recipients, progName, subject, statusMsg):
     s.quit()
 
 def turnOnInterlocks():
+    lockDevices = getLockDevices(args.lockdevicefile)
+    logger.info('ilock devices: %s', ', '.join(lockDevices))
 
-    # This works...
-    # -t -- Causes nc to send RFC 854 DON’T and WON’T responses to RFC 854 DO and WILL requests.  This makes it possible to use nc to script telnet sessions.
-    # -C -- Send CRLF as line-ending
-    #(echo; sleep 1; echo pshow) | nc -t -C ilocka03 23
+    worked = 0
+    failed = 0
+    alreadyOn = 0
 
-    pass
+    for lockDevice in lockDevices:
+        logger.info('Checking %s' % lockDevice)
+        ild = ilock.Ilock(lockDevice)
+        ild.open()
+        ild.initDevice()
+        countOff, countOn = ild.getStatus()
+        logger.info('Before turning on %s: outlets off: %d outlets on: %d', lockDevice, countOff, countOn)
+        if countOn < ilock.numOutlets:
+            ild.turnOutletsOn()
+            countOff, countOn = ild.getStatus()
+            logger.info('After turning on %s: outlets off: %d outlets on: %d', lockDevice, countOff, countOn)
+            if countOn == ilock.numOutlets:
+                worked += 1
+            else:
+                failed += 1
+                logger.error('Expected to turn on %d outlets on %s, turned on %d', ilock.numOutlets, lockDevice, countOn)
+        else:
+            alreadyOn += 1
+            logger.info('%s is already on', lockDevice)
+        ild.close()
+        
+        return worked, failed, alreadyOn
 
 def getLockDevices(lockDeviceFile):
     '''Get a list of the interlock host names from a file.
@@ -87,6 +112,55 @@ def getLockDevices(lockDeviceFile):
         lockDevices.append(line)
     f.close()
     return lockDevices
+
+def handleOutage(sender, recipients, progName, statusMsg):
+    subject = 'iLabs check %s' % statusWord[False]
+    statusMsg1 = statusMsg + ' Turning on interlocks.  '
+    emailMsgs = [statusMsg, 'Turning on interlocks.']
+    logger.info(statusMsg1)
+
+    worked, failed, alreadyOn = turnOnInterlocks()
+
+    statusMsg2 = 'Turned on: %d, failed to turn on: %d, already on: %d.' % (worked, failed, alreadyOn)
+    logger.info(statusMsg2)
+    emailMsgs.append(statusMsg2)
+    sendEmail(sender, recipients, progName, subject, emailMsgs)
+
+def handleRecovery(sender, recipients, progName, statusMsg):
+    subject = 'iLabs check %s' % statusWord[True]
+    logger.info(statusMsg)
+    sendEmail(sender, recipients, progName, subject, [statusMsg])
+
+def checkService(args):
+    consecNotOk = 0
+    handledOutage = False
+
+    for x in range(iterations):
+        ok = checkConnection(args.url, args.port, args.timeout, args.opensecs)
+
+        dt = datetime.datetime.now()
+
+        if ok:
+            consecNotOk = 0
+            # If there was an outage, send an email after the first successful connection.
+            if handledOutage:
+                statusMsg = '%s Connection to %s on port %s %s.' % (dt.strftime(dateFormat), args.url, args.port, statusWord[ok])
+                handleRecovery(args.sender, args.recipient, parser.prog, statusMsg)
+            handledOutage = False
+        else:
+            consecNotOk += 1
+
+        statusMsg = '%s Connection to %s on port %s %s.  Consecutive failures: %d.' % (dt.strftime(dateFormat), args.url, args.port, statusWord[ok], consecNotOk)
+
+        # If we have reached the failure limit, turn on the interlock
+        # devices and send an email.
+        if consecNotOk >= args.failure_limit and not handledOutage:
+            handleOutage(args.sender, args.recipient, parser.prog, statusMsg)
+            handledOutage = True
+        else:
+            logger.info(statusMsg)
+
+        time.sleep(args.wait)
 
 if __name__ == '__main__':
     import argparse
@@ -136,46 +210,6 @@ if __name__ == '__main__':
     logger.addHandler(fh)
     fh.setLevel(logging.DEBUG)
 
-    lockDevices = getLockDevices(args.lockdevicefile)
-    logger.info('Lock devices: %s', ', '.join(lockDevices))
-
-    consecNotOk = 0
-    handledOutage = False
-
-    for x in range(iterations):
-        ok = checkServer(args.url, args.port, args.timeout, args.opensecs)
-
-        dt = datetime.datetime.now()
-
-        if ok:
-            consecNotOk = 0
-            # If there was an outage, send an email after the first successful connection.
-            if handledOutage:
-                subject = 'iLabs check %s' % statusWord[ok]
-                statusMsg = '%s Connection to %s on port %s %s.' % (dt.strftime(dateFormat), args.url, args.port, statusWord[ok])
-                sendEmail(args.sender, args.recipient, parser.prog, subject, statusMsg)
-            handledOutage = False
-        else:
-            consecNotOk += 1
-
-        statusMsg = '%s Connection to %s on port %s %s.  Consecutive failures: %d' % (dt.strftime(dateFormat), args.url, args.port, statusWord[ok], consecNotOk)
-
-        # If we have reached the failure limit, turn on the interlock
-        # devices and send an email.
-        if consecNotOk >= args.failure_limit and not handledOutage:
-            subject = 'iLabs check %s' % statusWord[ok]
-            statusMsg += ' Turning on interlocks.'
-
-            logger.info(statusMsg)
-
-            sendEmail(args.sender, args.recipient, parser.prog, subject, statusMsg)
-
-            handledOutage = True
-
-            turnOnInterlocks()
-        else:
-            logger.info(statusMsg)
-
-        time.sleep(args.wait)
+    checkService(args)
 
     sys.exit(1)
