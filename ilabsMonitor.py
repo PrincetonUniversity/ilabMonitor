@@ -95,7 +95,7 @@ def turnOnInterlocks():
             logger.info('%s is already on', lockDevice)
         ild.close()
         
-        return worked, failed, alreadyOn
+    return worked, failed, alreadyOn
 
 def getLockDevices(lockDeviceFile):
     '''Get a list of the interlock host names from a file.
