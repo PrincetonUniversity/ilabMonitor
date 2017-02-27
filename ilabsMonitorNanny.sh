@@ -17,7 +17,7 @@ if [[ -z $pid ]]; then
     tail -1 $nanny_logfile | mail -s "ilabs monitor restarted" mcahn@princeton.edu
 
     cd $dir
-    nohup ilabsMonitor.py > $monitor_stdout 2>&1 &
+    nohup ilabsMonitor.py -r mcahn@princeton.edu -r glaevsky@princeton..edu -r augustin@princeton.edu > $monitor_stdout 2>&1 &
 
 else
     words=( $pid )
