@@ -77,24 +77,28 @@ def turnOnInterlocks():
     for lockDevice in lockDevices:
         logger.info('Checking %s' % lockDevice)
         ild = ilock.Ilock(lockDevice)
-        ild.open()
-        ild.initDevice()
-        countOff, countOn = ild.getStatus()
-        logger.info('Before turning on %s: outlets off: %d outlets on: %d', lockDevice, countOff, countOn)
-        if countOn < ilock.numOutlets:
-            ild.turnOutletsOn()
+        try:
+            ild.open()
+            ild.initDevice()
             countOff, countOn = ild.getStatus()
-            logger.info('After turning on %s: outlets off: %d outlets on: %d', lockDevice, countOff, countOn)
-            if countOn == ilock.numOutlets:
-                worked += 1
+            logger.info('Before turning on %s: outlets off: %d outlets on: %d', lockDevice, countOff, countOn)
+            if countOn < ilock.numOutlets:
+                ild.turnOutletsOn()
+                countOff, countOn = ild.getStatus()
+                logger.info('After turning on %s: outlets off: %d outlets on: %d', lockDevice, countOff, countOn)
+                if countOn == ilock.numOutlets:
+                    worked += 1
+                else:
+                    failed += 1
+                    logger.error('Expected to turn on %d outlets on %s, turned on %d', ilock.numOutlets, lockDevice, countOn)
             else:
-                failed += 1
-                logger.error('Expected to turn on %d outlets on %s, turned on %d', ilock.numOutlets, lockDevice, countOn)
-        else:
-            alreadyOn += 1
-            logger.info('%s is already on', lockDevice)
-        ild.close()
-        
+                alreadyOn += 1
+                logger.info('%s is already on', lockDevice)
+            ild.close()
+        except socket.timeout:
+            failed += 1
+            logger.error('Could not communicate with %s.', lockDevice)
+            
     return worked, failed, alreadyOn
 
 def getLockDevices(lockDeviceFile):
