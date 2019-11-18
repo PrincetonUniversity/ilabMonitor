@@ -42,6 +42,7 @@ def checkConnection(url, port, timeout, opensecs):
     # Create a TCP socket
     s = socket.socket()
     try:
+        logger.debug('Connecting to %s on port %s', url, port)
         s.connect((url, port))
         if opensecs is not None:
             time.sleep(opensecs)
@@ -68,42 +69,48 @@ def sendEmail(sender, recipients, progName, subject, statusMsgs):
 
 def turnOnInterlocks():
     lockDevices = getLockDevices(args.lockdevicefile)
-    logger.info('ilock devices: %s', ', '.join(lockDevices))
+    for lockDevice, numOutlets in lockDevices:
+        logger.info('ilock devices: %s (%d outlets)', lockDevice, numOutlets)
 
     worked = 0
     failed = 0
     alreadyOn = 0
 
-    for lockDevice in lockDevices:
+    for lockDevice, numOutlets in lockDevices:
         logger.info('Checking %s' % lockDevice)
-        ild = ilock.Ilock(lockDevice)
+        ild = ilock.Ilock(lockDevice, logger)
         try:
             ild.open()
+            logger.debug('%s: initDevice()', lockDevice)
             ild.initDevice()
+            logger.debug('%s: getStatus()', lockDevice)
             countOff, countOn = ild.getStatus()
             logger.info('Before turning on %s: outlets off: %d outlets on: %d', lockDevice, countOff, countOn)
-            if countOn < ilock.numOutlets:
+            if countOn < numOutlets:
                 ild.turnOutletsOn()
+                logger.debug('%s: getStatus()', lockDevice)
                 countOff, countOn = ild.getStatus()
                 logger.info('After turning on %s: outlets off: %d outlets on: %d', lockDevice, countOff, countOn)
-                if countOn == ilock.numOutlets:
+                if countOn == numOutlets:
                     worked += 1
                 else:
                     failed += 1
-                    logger.error('Expected to turn on %d outlets on %s, turned on %d', ilock.numOutlets, lockDevice, countOn)
+                    logger.error('Expected to turn on %d outlets on %s, turned on %d', numOutlets, lockDevice, countOn)
             else:
                 alreadyOn += 1
                 logger.info('%s is already on', lockDevice)
             ild.close()
-        except socket.timeout:
+        except (socket.timeout, socket.gaierror) as err:
             failed += 1
             logger.error('Could not communicate with %s.', lockDevice)
+            logger.error(err)
             
     return worked, failed, alreadyOn
 
 def getLockDevices(lockDeviceFile):
-    '''Get a list of the interlock host names from a file.
-    The devices are listed one per line.  Comments are allowed.'''
+    '''Get a list of the interlock host names and number of outlets from a file.
+    The devices and number of outlets are listed one per line, tab-separated.
+    Comments are allowed.'''
     
     lockDevices = []
     f = open(lockDeviceFile)
@@ -113,7 +120,15 @@ def getLockDevices(lockDeviceFile):
             continue
         if not line:
             continue
-        lockDevices.append(line)
+        fields = line.split('\t')
+        if len(fields) != 2:
+            logger.error('Expected device name and number of outlets, tab-separated, got: %s', line)
+            sys.exit(1)
+        try:
+            lockDevices.append((fields[0], int(fields[1])))
+        except (IndexError, ValueError) as err:
+            logger.error('Expected device name and number of outlets, tab-separated, got: %s', line)
+            sys.exit(1)
     f.close()
     return lockDevices
 
@@ -140,6 +155,8 @@ def checkService(args):
     handledOutage = False
 
     for x in range(iterations):
+        logger.info('Iteration: %d', x)
+        
         ok = checkConnection(args.url, args.port, args.timeout, args.opensecs)
 
         dt = datetime.datetime.now()
@@ -199,6 +216,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--logfile', default=defaultLogFile, help='Log file name.')
 
+    parser.add_argument('-v', '--verbose', action='store_true', help='Turn on debug messages.')
+    
     args = parser.parse_args()
 
     if args.iterations > 0:
@@ -207,13 +226,19 @@ if __name__ == '__main__':
         iterations = 1024 ** 3
 
     logger = logging.getLogger(parser.prog)
-    logger.setLevel(logging.DEBUG)
+    if args.verbose:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
     fh = handlers.RotatingFileHandler(args.logfile, maxBytes=10*1024*1024, backupCount=100)
     fileFormatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s', datefmt=dateFormat)
     fh.setFormatter(fileFormatter)
     logger.addHandler(fh)
-    fh.setLevel(logging.DEBUG)
-
+    if args.verbose:
+        fh.setLevel(logging.DEBUG)
+    else:
+        fh.setLevel(logging.INFO)
+        
     checkService(args)
 
     sys.exit(1)
