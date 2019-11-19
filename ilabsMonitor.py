@@ -15,11 +15,16 @@ import datetime
 import time
 from email.message import EmailMessage
 import smtplib
+import requests
 
 import ilock
 
 defaultUrl = 'kiosk-access.ilabsolutions.com'
 defaultPort = 22
+
+defaultWebSite = 'https://princeton.corefacilities.org/service_center/show_external/4042?name=confocal-imaging-facility'
+defaultExpectedText = 'Confocal Imaging Facility'
+
 defaultTimeoutSecs = 10
 defaultOpenSocketSecs = None
 defaultSender = 'mcahn@princeton.edu'
@@ -50,6 +55,17 @@ def checkConnection(url, port, timeout, opensecs):
         s.close()
         return True
     except socket.error as e:
+        return False
+
+    
+def checkWebSite(url, expectedText):
+    logger.debug('Checking %s', url)
+    r = requests.get(url)
+    if expectedText in r.text:
+        logger.debug('Found expected text "%s"', expectedText)
+        return True
+    else:
+        logger.debug('Did not find expected text "%s"', expectedText)
         return False
 
 def sendEmail(sender, recipients, progName, subject, statusMsgs):
@@ -151,31 +167,49 @@ def handleRecovery(sender, recipients, progName, statusMsg):
     sendEmail(sender, recipients, progName, subject, [statusMsg])
 
 def checkService(args):
-    consecNotOk = 0
+    consecNotOk = {'ilock': 0, 'website': 0}
     handledOutage = False
 
     for x in range(iterations):
         logger.info('Iteration: %d', x)
         
-        ok = checkConnection(args.url, args.port, args.timeout, args.opensecs)
+        ilockOk = checkConnection(args.url, args.port, args.timeout, args.opensecs)
 
+        logger.debug('ilockOk: %s', ilockOk)
+        
+        webSiteOk = checkWebSite(args.website, args.text)
+
+        logger.debug('webSiteOk: %s', webSiteOk)
+        
         dt = datetime.datetime.now()
 
-        if ok:
-            consecNotOk = 0
+        if ilockOk and webSiteOk:
+            consecNotOk['ilock'] = 0
+            consecNotOk['website'] = 0
             # If there was an outage, send an email after the first successful connection.
             if handledOutage:
-                statusMsg = '%s Connection to %s on port %s %s.' % (dt.strftime(dateFormat), args.url, args.port, statusWord[ok])
+                statusMsg = 'The interlock control and the iLab web site are up.'
+                ## statusMsg = '%s Connection to %s on port %s %s.' % (dt.strftime(dateFormat), args.url, args.port, statusWord[ok])
                 handleRecovery(args.sender, args.recipient, parser.prog, statusMsg)
             handledOutage = False
         else:
-            consecNotOk += 1
+            if not ilockOk:
+                consecNotOk['ilock'] += 1
+            if not webSiteOk:
+                consecNotOk['website'] += 1
 
-        statusMsg = '%s Connection to %s on port %s %s.  Consecutive failures: %d.' % (dt.strftime(dateFormat), args.url, args.port, statusWord[ok], consecNotOk)
+        logger.debug("consecNotOk['ilock']: %d consecNotOk['website']: %d", consecNotOk['ilock'], consecNotOk['website'])
+        
+        statusFmt = '''%s\n
+Connection to %s on port %s %s.  Consecutive failures: %d\n
+Web site (%s) should contain "%s", %s.  Consecutive failures: %d
+'''
+        statusMsg = statusFmt % (dt.strftime(dateFormat), args.url, args.port, statusWord[ilockOk], consecNotOk['ilock'],
+                                     args.website, args.text, statusWord[webSiteOk], consecNotOk['website'])
 
         # If we have reached the failure limit, turn on the interlock
         # devices and send an email.
-        if consecNotOk >= args.failure_limit and not handledOutage:
+        if consecNotOk['ilock'] + consecNotOk['website'] >= args.failure_limit and not handledOutage:
             handleOutage(args.sender, args.recipient, parser.prog, statusMsg)
             handledOutage = True
         else:
@@ -192,9 +226,13 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='%s' % __doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('-u', '--url', default=defaultUrl, help='URL (or IP address) to check.')
+    parser.add_argument('-u', '--url', default=defaultUrl, help='Interlock control URL (or IP address) to check.')
     
     parser.add_argument('-p', '--port', type=int, default=defaultPort, help='Port to check.')
+    
+    parser.add_argument('--website', default=defaultWebSite, help='Web site URL to check (must start with http[s]:)')
+    
+    parser.add_argument('--text', default=defaultExpectedText, help='Text to expect on web site')
 
     parser.add_argument('-t', '--timeout', type=float, default=defaultTimeoutSecs, help='Socket timeout in seconds.')
 
