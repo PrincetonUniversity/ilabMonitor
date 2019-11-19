@@ -58,9 +58,14 @@ def checkConnection(url, port, timeout, opensecs):
         return False
 
     
-def checkWebSite(url, expectedText):
+def checkWebSite(url, expectedText, timeout):
     logger.debug('Checking %s', url)
-    r = requests.get(url)
+    try:
+        r = requests.get(url, timeout=timeout)
+    except requests.exceptions.ConnectionError as err:
+        logger.debug(err)
+        return False
+    
     if expectedText in r.text:
         logger.debug('Found expected text "%s"', expectedText)
         return True
@@ -177,7 +182,7 @@ def checkService(args):
 
         logger.debug('ilockOk: %s', ilockOk)
         
-        webSiteOk = checkWebSite(args.website, args.text)
+        webSiteOk = checkWebSite(args.website, args.text, args.timeout)
 
         logger.debug('webSiteOk: %s', webSiteOk)
         
