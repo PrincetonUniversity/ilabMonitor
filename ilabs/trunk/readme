@@ -1,0 +1,133 @@
+Setting IP address
+1/9/2019
+
+Agilent CrossLab (iLabs) Requirements doc: https://docs.google.com/document/d/19JDAbXyr9JCtJK6L8xfig0SOCtTa30KVyt2NozrDgzs/edit
+
+Setting up ilocka09.
+Add to hostmaster.
+
+You cannot use DHCP to set the address, because the sonnet subnet
+can't talk to it.
+
+If you have turned DHCP on in the interlock, reset to the factory
+defaults (including DHCP off) by holding in the reset button (use a
+paper clip or pushpin) for 20 seconds.
+
+Connect the old cluster node "cryoem-dtn" with an Ethernet cable
+directly to the interlock.  A cross-over cable or Ethernet switch
+is not needed.
+
+Edit /etc/sysconfig/network-scripts/ifcfg-em2 as follows:
+
+TYPE=Ethernet
+IPADDR=192.168.1.101
+GATEWAY=192.168.1.254
+PREFIX=16
+PROXY_METHOD=none
+BROWSER_ONLY=no
+BOOTPROTO=none
+DEFROUTE=no
+IPV4_FAILURE_FATAL=no
+IPV6INIT=no
+IPV6_AUTOCONF=no
+IPV6_DEFROUTE=no
+IPV6_FAILURE_FATAL=no
+IPV6_ADDR_GEN_MODE=stable-privacy
+NAME=em2
+UUID=586d2600-d666-4a18-b39d-65887b1d2a97
+DEVICE=em2
+ONBOOT=yes
+
+Make these settings:
+
+Browse 192.168.1.100
+Network
+Static IP: 192.168.24.151        (from hostmaster entry for ilocka09)
+Subnet Mask: 255.255.255.128     (from hostmaster entry for sonnet subnet)
+Gateway: 192.168.24.129          (from hostmaster entry for sonnet subnet)
+HTTP port: 443 *****
+(Leave DNS servers alone -- must be populated)
+Save
+Restart Network
+
+**** For iLabs to control it, you must set the port to 443.
+On the newer xxxDU models, you cannot have both port 443 and port 80 active
+at the same time. On the older xxxDT models you can.
+
+*** To browse the ilock on 443, browse: https://ilocka09.  (Specifying the port,
+e.g. ilocka09:443, does not work).
+
+The ilock has a self-signed certificate that you have to agree to.
+
+(See below for all before and after settings).
+
+Switch to Ethernet cable on sonnet.
+
+On molbio5 (which is white-listed for sonnet):
+
+telnet ilocka09
+ps 0 (turn off all outlets)
+ps 1 (turn on all outlets)
+Works!
+
+
+I updated the firmware, although this turned out not to be the port 80 vs. 443 solution.
+
+Update firmware:
+See: https://www.synaccess-net.com/support/
+
+To start upgrade, open HTTP page 
+http://UNIT_IP_ADDR/synl
+   The last letter is letter “l”, not digit “1”. 
+Browse for downloaded firmware.
+
+
+ilocka09
+========
+
+Default settings...
+-------------------
+
+synaccess Telnet V7.1
+>sysshow
+
+System Settings:
+System Name : RemotePDU
+IP Static or DHCP : Static IP
+Active network info:
+IP-Mask-GW:192.168.1.100-255.255.0.0-192.168.1.1
+Static IP/Mask/Gateway : 192.168.1.100-255.255.0.0-192.168.1.1
+DNS Pri/Sec: 8.8.8.8-192.169.1.1
+NetBIOS Name: REMOTEPDU      
+Ethernet Port is ON 
+HTTP/Telnet Port #: 80/23
+MAC Address : 0c:73:eb:b0:27:18
+Web is Enabled
+Telnet is Enabled
+Designated Source IP/Subnet-Mask (Allowed To Access. 0s allow all.): 0.0.0.0/255.255.255.255
+Outlet Status(1-On, 0-Off. Outlet 1 to 8): 0 0 0 0 0 0 0 0 
+Flash mem OK
+
+
+After making settings...
+------------------------
+
+>sysshow
+
+System Settings:
+System Name : RemotePDU
+IP Static or DHCP : Static IP
+Active network info:
+IP-Mask-GW:192.168.24.151-255.255.255.128-192.168.24.129
+Static IP/Mask/Gateway : 192.168.24.151-255.255.255.128-192.168.24.129
+DNS Pri/Sec: 8.8.8.8-192.169.1.1
+NetBIOS Name: REMOTEPDU      
+Ethernet Port is ON 
+HTTP/Telnet Port #: 443/23
+MAC Address : 0c:73:eb:b0:27:18
+Web is Enabled
+Telnet is Enabled
+Designated Source IP/Subnet-Mask (Allowed To Access. 0s allow all.): 0.0.0.0/255.255.255.255
+Outlet Status(1-On, 0-Off. Outlet 1 to 8): 0 0 0 0 0 0 0 0 
+Flash mem OK
+
