@@ -235,12 +235,12 @@ def checkService(args):
         logger.debug("consecNotOk['ilock']: %d consecNotOk['website']: %d consecNotOk['login']: %d", consecNotOk['ilock'], consecNotOk['website'], consecNotOk['login'])
         
         statusFmt1 = 'Connection to %s on port %s %s.  Consecutive failures: %d'
-        statusFmt2 = 'Web site (%s) should contain "%s", %s.  Consecutive failures: %d'
+        statusFmt2 = 'Web site should contain "%s", %s.  Consecutive failures: %d'
         statusFmt3 = 'Logging into web site %s.  Consecutive failures: %d'
         statusMsgs = []
         statusMsgs.append(statusFmt1 % (args.url, args.port, statusWord[ilockOk], consecNotOk['ilock']))
-        statusMsgs.append(statusFmt2 % (args.website, args.text, statusWord[webSiteOk], consecNotOk['website']))
-        statusMsgs.append(statusFmt3 % (consecNotOk['login'], statusWord[loginOk]))
+        statusMsgs.append(statusFmt2 % (args.text, statusWord[webSiteOk], consecNotOk['website']))
+        statusMsgs.append(statusFmt3 % (statusWord[loginOk], consecNotOk['login']))
         
         # If we have reached the failure limit, turn on the interlock devices and send an email.
         # Not that if the web site didn't answer with the right text, then we didn't try to log in,
