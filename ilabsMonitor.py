@@ -17,6 +17,7 @@ from email.message import EmailMessage
 import smtplib
 import requests
 
+import ilabsWeb
 import ilock
 
 defaultUrl = 'kiosk-access.ilabsolutions.com'
@@ -174,7 +175,7 @@ def handleRecovery(sender, recipients, progName, statusMsgs):
     sendEmail(sender, recipients, progName, subject, statusMsgs)
 
 def checkService(args):
-    consecNotOk = {'ilock': 0, 'website': 0}
+    consecNotOk = {'ilock': 0, 'website': 0, 'login': 0}
     handledOutage = False
 
     for x in range(iterations):
@@ -191,18 +192,32 @@ def checkService(args):
 
         try:
             webSiteOk = checkWebSite(args.website, args.text, args.timeout)
+
+            if webSiteOk:
+                try:
+                    loginOk = ilabsWeb.loginWorks(logger)
+                except Exception as err:
+                    logger.error('Error in loginWorks()')
+                    logger.error(err)
+                    loginOk = False
+            else:
+                loginOk = False
         except Exception as err:
             logger.error('Error in checkWebSite()')
             logger.error(err)
             webSiteOk = False
+            loginOk = False
 
         logger.debug('webSiteOk: %s', webSiteOk)
         
+        logger.debug('loginOk: %s', loginOk)
+        
         dt = datetime.datetime.now()
 
-        if ilockOk and webSiteOk:
+        if ilockOk and webSiteOk and loginOk:
             consecNotOk['ilock'] = 0
             consecNotOk['website'] = 0
+            consecNotOk['login'] = 0
             # If there was an outage, send an email after the first successful connection.
             if handledOutage:
                 statusMsgs = ['The interlock control and the iLab web site are up.']
@@ -214,18 +229,24 @@ def checkService(args):
                 consecNotOk['ilock'] += 1
             if not webSiteOk:
                 consecNotOk['website'] += 1
-
-        logger.debug("consecNotOk['ilock']: %d consecNotOk['website']: %d", consecNotOk['ilock'], consecNotOk['website'])
+            if not loginOk:
+                consecNotOk['login'] += 1
+                
+        logger.debug("consecNotOk['ilock']: %d consecNotOk['website']: %d consecNotOk['login']: %d", consecNotOk['ilock'], consecNotOk['website'], consecNotOk['login'])
         
         statusFmt1 = 'Connection to %s on port %s %s.  Consecutive failures: %d'
         statusFmt2 = 'Web site (%s) should contain "%s", %s.  Consecutive failures: %d'
+        statusFmt3 = 'Logging into web site.  Consecutive failures: %d'
         statusMsgs = []
         statusMsgs.append(statusFmt1 % (args.url, args.port, statusWord[ilockOk], consecNotOk['ilock']))
         statusMsgs.append(statusFmt2 % (args.website, args.text, statusWord[webSiteOk], consecNotOk['website']))
-
-        # If we have reached the failure limit, turn on the interlock
-        # devices and send an email.
-        if consecNotOk['ilock'] + consecNotOk['website'] >= args.failure_limit and not handledOutage:
+        statusMsgs.append(statusFmt3 % (consecNotOk['login']))
+        
+        # If we have reached the failure limit, turn on the interlock devices and send an email.
+        # Not that if the web site didn't answer with the right text, then we didn't try to log in,
+        # and assume that logging in won't work.
+        
+        if consecNotOk['ilock'] + consecNotOk['login'] >= args.failure_limit and not handledOutage:
             handleOutage(args.sender, args.recipient, parser.prog, statusMsgs)
             handledOutage = True
         else:
