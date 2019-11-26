@@ -153,12 +153,13 @@ def getLockDevices(lockDeviceFile):
     f.close()
     return lockDevices
 
-def handleOutage(sender, recipients, progName, statusMsg):
+def handleOutage(sender, recipients, progName, statusMsgs):
     subject = 'iLabs check %s' % statusWord[False]
-    statusMsg1 = statusMsg + ' Turning on interlocks.  '
-    emailMsgs = [statusMsg, 'Turning on interlocks.']
-    logger.info(statusMsg1)
-
+    emailMsgs = statusMsgs[:]
+    emailMsgs.append('Turning on interlocks.')
+    for emailMsg in emailMsgs:
+        logger.info(emailMsg)
+    
     worked, failed, alreadyOn = turnOnInterlocks()
 
     statusMsg2 = 'Turned on: %d, failed to turn on: %d, already on: %d.' % (worked, failed, alreadyOn)
@@ -166,10 +167,11 @@ def handleOutage(sender, recipients, progName, statusMsg):
     emailMsgs.append(statusMsg2)
     sendEmail(sender, recipients, progName, subject, emailMsgs)
 
-def handleRecovery(sender, recipients, progName, statusMsg):
+def handleRecovery(sender, recipients, progName, statusMsgs):
     subject = 'iLabs check %s' % statusWord[True]
-    logger.info(statusMsg)
-    sendEmail(sender, recipients, progName, subject, [statusMsg])
+    for statusMsg in statusMsgs:
+        logger.info(statusMsg)
+    sendEmail(sender, recipients, progName, subject, statusMsgs)
 
 def checkService(args):
     consecNotOk = {'ilock': 0, 'website': 0}
@@ -177,12 +179,22 @@ def checkService(args):
 
     for x in range(iterations):
         logger.info('Iteration: %d', x)
-        
-        ilockOk = checkConnection(args.url, args.port, args.timeout, args.opensecs)
 
+        try:
+            ilockOk = checkConnection(args.url, args.port, args.timeout, args.opensecs)
+        except Exception as err:
+            logger.error('Error in checkConnection()')
+            logger.error(err)
+            ilockOk = False
+            
         logger.debug('ilockOk: %s', ilockOk)
-        
-        webSiteOk = checkWebSite(args.website, args.text, args.timeout)
+
+        try:
+            webSiteOk = checkWebSite(args.website, args.text, args.timeout)
+        except Exception as err:
+            logger.error('Error in checkWebSite()')
+            logger.error(err)
+            webSiteOk = False
 
         logger.debug('webSiteOk: %s', webSiteOk)
         
@@ -193,9 +205,9 @@ def checkService(args):
             consecNotOk['website'] = 0
             # If there was an outage, send an email after the first successful connection.
             if handledOutage:
-                statusMsg = 'The interlock control and the iLab web site are up.'
+                statusMsgs = ['The interlock control and the iLab web site are up.']
                 ## statusMsg = '%s Connection to %s on port %s %s.' % (dt.strftime(dateFormat), args.url, args.port, statusWord[ok])
-                handleRecovery(args.sender, args.recipient, parser.prog, statusMsg)
+                handleRecovery(args.sender, args.recipient, parser.prog, statusMsgs)
             handledOutage = False
         else:
             if not ilockOk:
@@ -205,21 +217,20 @@ def checkService(args):
 
         logger.debug("consecNotOk['ilock']: %d consecNotOk['website']: %d", consecNotOk['ilock'], consecNotOk['website'])
         
-        statusFmt = '''%s\n
-Connection to %s on port %s %s.  Consecutive failures: %d\n
-Web site (%s) should contain "%s", %s.  Consecutive failures: %d
-'''
-        statusMsg = statusFmt % (dt.strftime(dateFormat), args.url, args.port, statusWord[ilockOk], consecNotOk['ilock'],
-                                     args.website, args.text, statusWord[webSiteOk], consecNotOk['website'])
+        statusFmt1 = 'Connection to %s on port %s %s.  Consecutive failures: %d'
+        statusFmt2 = 'Web site (%s) should contain "%s", %s.  Consecutive failures: %d'
+        statusMsgs = []
+        statusMsgs.append(statusFmt1 % (args.url, args.port, statusWord[ilockOk], consecNotOk['ilock']))
+        statusMsgs.append(statusFmt2 % (args.website, args.text, statusWord[webSiteOk], consecNotOk['website']))
 
         # If we have reached the failure limit, turn on the interlock
         # devices and send an email.
         if consecNotOk['ilock'] + consecNotOk['website'] >= args.failure_limit and not handledOutage:
-            handleOutage(args.sender, args.recipient, parser.prog, statusMsg)
+            handleOutage(args.sender, args.recipient, parser.prog, statusMsgs)
             handledOutage = True
         else:
-            logger.info(statusMsg)
-
+            for statusMsg in statusMsgs:
+                logger.info(statusMsg)
         time.sleep(args.wait)
 
 if __name__ == '__main__':
