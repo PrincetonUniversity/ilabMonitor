@@ -80,7 +80,7 @@ def sendEmail(sender, recipients, progName, subject, statusMsgs):
     msg['To'] = ', '.join(recipients)
     msg['From'] = args.sender
 
-    body = ['This is an automated message from %s running on %s.' % (progName, socket.gethostname()), '']
+    body = ['This is an automated message from %s running on %s.' % (progName, socket.getfqdn()), '']
     body.extend(statusMsgs)
 
     msg.set_content('\n'.join(body))
