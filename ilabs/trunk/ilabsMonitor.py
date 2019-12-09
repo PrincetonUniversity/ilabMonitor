@@ -58,7 +58,7 @@ def checkWebSite(url, expectedText, timeout):
         logger.debug('Did not find expected text "%s"', expectedText)
         return False
 
-def sendEmail(sender, recipients, progName, subject, statusMsgs):
+def sendEmail(mailServer, sender, recipients, progName, subject, statusMsgs):
     msg = EmailMessage()
     msg['Subject'] = subject
     msg['To'] = ', '.join(recipients)
@@ -69,7 +69,7 @@ def sendEmail(sender, recipients, progName, subject, statusMsgs):
 
     msg.set_content('\n'.join(body))
 
-    s = smtplib.SMTP('localhost')
+    s = smtplib.SMTP(mailServer)
     s.send_message(msg)
     s.quit()
 
@@ -138,7 +138,7 @@ def getLockDevices(lockDeviceFile):
     f.close()
     return lockDevices
 
-def handleOutage(sender, recipients, progName, statusMsgs):
+def handleOutage(mailServer, sender, recipients, progName, statusMsgs):
     subject = 'iLabs check %s' % statusWord[False]
     emailMsgs = statusMsgs[:]
     emailMsgs.append('Turning on interlocks.')
@@ -150,13 +150,13 @@ def handleOutage(sender, recipients, progName, statusMsgs):
     statusMsg2 = 'Turned on: %d, failed to turn on: %d, already on: %d.' % (worked, failed, alreadyOn)
     logger.info(statusMsg2)
     emailMsgs.append(statusMsg2)
-    sendEmail(sender, recipients, progName, subject, emailMsgs)
+    sendEmail(mailServer, sender, recipients, progName, subject, emailMsgs)
 
-def handleRecovery(sender, recipients, progName, statusMsgs):
+def handleRecovery(mailServer, sender, recipients, progName, statusMsgs):
     subject = 'iLabs check %s' % statusWord[True]
     for statusMsg in statusMsgs:
         logger.info(statusMsg)
-    sendEmail(sender, recipients, progName, subject, statusMsgs)
+    sendEmail(mailServer, sender, recipients, progName, subject, statusMsgs)
 
 def checkService(config, iterations):
     consecNotOk = {'ilock': 0, 'website': 0, 'login': 0}
@@ -205,7 +205,7 @@ def checkService(config, iterations):
             # If there was an outage, send an email after the first successful connection.
             if handledOutage:
                 statusMsgs = ['The interlock control and the iLab web site are up.']
-                handleRecovery(config.sender, config.recipients, parser.prog, statusMsgs)
+                handleRecovery(config.mailServer, config.sender, config.recipients, parser.prog, statusMsgs)
             handledOutage = False
         else:
             if not ilockOk:
@@ -228,7 +228,7 @@ def checkService(config, iterations):
         # If we have reached the failure limit, turn on the interlock devices and send an email.
         
         if (consecNotOk['ilock'] >= config.failureLimit or consecNotOk['website'] >= config.failureLimit or consecNotOk['login'] >= config.failureLimit) and not handledOutage:
-            handleOutage(config.sender, config.recipients, parser.prog, statusMsgs)
+            handleOutage(config.mailServer, config.sender, config.recipients, parser.prog, statusMsgs)
             handledOutage = True
         else:
             for statusMsg in statusMsgs:

@@ -35,6 +35,9 @@ timeout: 10
 # How many seconds to try to keep the ilockurl open (null means don't keep it open)
 openSecs: null
 
+# The SMTP mail server through which to send mail
+mailServer: localhost
+
 # Who the failure or recovery email is from
 sender: mcahn@princeton
 
