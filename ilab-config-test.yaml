@@ -2,11 +2,10 @@
 # It is in YaML format.
 
 # The URL at iLab that controls your interlock devices
-# ilockurl: www.google.com
-ilockurl: kiosk-access.ilabsolutions.com
+ilockurl: localhost
 
 # The port at the above URL
-ilockport: 22
+ilockport: 8080
 
 # The URL to visit to check if the web site is running (must start with http: or https:)
 website: http://pycourse.princeton.edu
@@ -45,7 +44,7 @@ sender: mcahn@princeton
 recipients: [mcahn@princeton.edu]
 
 # How many times to check the interlock control and web site (0 means run forever)
-iterations: 4
+iterations: 0
 
 # How many seconds to wait between checks
 wait: 10

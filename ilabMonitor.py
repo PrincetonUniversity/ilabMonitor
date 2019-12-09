@@ -44,6 +44,7 @@ def checkConnection(url, port, timeout, openSecs):
 
     
 def checkWebSite(url, expectedText, timeout):
+    '''Check if a url returns some expected text.'''
     logger.debug('Checking %s', url)
     try:
         r = requests.get(url, timeout=timeout)
@@ -116,7 +117,7 @@ def turnOnInterlocks():
 def getLockDevices(lockDeviceFile):
     '''Get a list of the interlock host names and number of outlets from a file.
     The devices and number of outlets are listed one per line, tab-separated.
-    Comments are allowed.'''
+    Comments are allowed on lines by themselves.'''
     
     lockDevices = []
     f = open(lockDeviceFile)
@@ -139,6 +140,8 @@ def getLockDevices(lockDeviceFile):
     return lockDevices
 
 def handleOutage(mailServer, sender, recipients, progName, statusMsgs):
+    '''Turn on the interlocks and send an outage email.'''
+    
     subject = 'iLab check %s' % statusWord[False]
     emailMsgs = statusMsgs[:]
     emailMsgs.append('Turning on interlocks.')
@@ -153,12 +156,16 @@ def handleOutage(mailServer, sender, recipients, progName, statusMsgs):
     sendEmail(mailServer, sender, recipients, progName, subject, emailMsgs)
 
 def handleRecovery(mailServer, sender, recipients, progName, statusMsgs):
+    '''Send a recovery email.'''
+    
     subject = 'iLab check %s' % statusWord[True]
     for statusMsg in statusMsgs:
         logger.info(statusMsg)
     sendEmail(mailServer, sender, recipients, progName, subject, statusMsgs)
 
 def checkService(config, iterations):
+    '''Check the iLab services and handle an outage or recovery as needed.'''
+    
     consecNotOk = {'ilock': 0, 'website': 0, 'login': 0}
     handledOutage = False
 
@@ -176,28 +183,22 @@ def checkService(config, iterations):
 
         try:
             webSiteOk = checkWebSite(config.website, config.expectedText, config.timeout)
-
-            if webSiteOk:
-                try:
-                    loginOk = ilabWeb.loginWorks(config, logger, saveHTML=config.saveHTML)
-                except Exception as err:
-                    logger.error('Error in loginWorks()')
-                    logger.error(err)
-                    loginOk = False
-            else:
-                loginOk = True
         except Exception as err:
             logger.error('Error in checkWebSite()')
             logger.error(err)
             webSiteOk = False
-            loginOk = False
 
         logger.debug('webSiteOk: %s', webSiteOk)
         
+        try:
+            loginOk = ilabWeb.loginWorks(config, logger, saveHTML=config.saveHTML)
+        except Exception as err:
+            logger.error('Error in loginWorks()')
+            logger.error(err)
+            loginOk = False
+                
         logger.debug('loginOk: %s', loginOk)
         
-        dt = datetime.datetime.now()
-
         if ilockOk and webSiteOk and loginOk:
             consecNotOk['ilock'] = 0
             consecNotOk['website'] = 0
@@ -215,7 +216,8 @@ def checkService(config, iterations):
             if not loginOk:
                 consecNotOk['login'] += 1
                 
-        logger.debug("consecNotOk['ilock']: %d consecNotOk['website']: %d consecNotOk['login']: %d", consecNotOk['ilock'], consecNotOk['website'], consecNotOk['login'])
+        logger.debug("consecNotOk['ilock']: %d consecNotOk['website']: %d consecNotOk['login']: %d",
+                     consecNotOk['ilock'], consecNotOk['website'], consecNotOk['login'])
         
         statusFmt1 = 'Connection to %s on port %s %s.  Consecutive failures: %d'
         statusFmt2 = 'Web site should contain "%s", %s.  Consecutive failures: %d'
