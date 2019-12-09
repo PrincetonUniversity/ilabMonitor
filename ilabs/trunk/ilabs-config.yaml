@@ -1,0 +1,69 @@
+# This is the configuration file for the iLab monitor.
+# It is in YaML format.
+
+# The URL at iLab that controls your interlock devices
+# ilockurl: www.google.com
+ilockurl: kiosk-access.ilabsolutions.com
+
+# The port at the above URL
+ilockport: 22
+
+# The URL to visit to check if the web site is running (must start with http: or https:)
+website: https://princeton.corefacilities.org/service_center/show_external/4042?name=confocal-imaging-facility
+
+# Some text that you expect to see on the URL above
+expectedText: Confocal Imaging Facility
+
+# A username that can log in to the iLab web site. (iLab credentials, not a username at your institution).
+username: matthew.cahn@gmail.com
+
+# Password for the username above
+password: 2Monitor|Not
+
+# The URL for the page on which to try logging in
+loginPage: https://princeton.corefacilities.org/account/login#
+
+# The URL for a page to check after logging in
+loggedInPage: https://princeton.corefacilities.org
+
+# Text that should appear on the URL above when successfully logged in
+successMsg: Logged in successfully
+
+# How many seconds to wait for the ilockurl or website to respond
+timeout: 10
+
+# How many seconds to try to keep the ilockurl open (null means don't keep it open)
+openSecs: null
+
+# Who the failure or recovery email is from
+sender: mcahn@princeton
+
+# A comma-separated list of people who should get email when a failure or a recovery is detetected.
+recipients: [mcahn@princeton.edu, matthew.cahn@gmail.com]
+
+# How many times to check the interlock control and web site (0 means run forever)
+iterations: 0
+
+# How many seconds to wait between checks
+wait: 60
+
+# How many failures in a row will trigger turning on the interlocks
+failureLimit: 5
+
+# The filename containing a list of the hostnames or IP addresses of your interlocks
+lockDeviceFile: /usr/local/etc/ilabsInterlockDevices
+
+# The directory to contains the logs for this monitor
+logDirectory: /var/log/ilabs
+
+# The file to contain the logs
+logFile: ilabsMonitor.log
+
+# For debugging, these filenames will be the saved HTML for the web pages above,
+# if either HTML saving is turned on in the code, or if logging in fails.
+loginPageFile: ilab-login-page
+loginResponseFile: ilab-login-response
+loggedInFile: ilab-logged-in-page
+
+# For debugging, save the HTML from the web pages
+saveHTML: false
