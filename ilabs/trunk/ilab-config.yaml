@@ -2,7 +2,6 @@
 # It is in YaML format.
 
 # The URL at iLab that controls your interlock devices
-# ilockurl: www.google.com
 ilockurl: kiosk-access.ilabsolutions.com
 
 # The port at the above URL
@@ -42,7 +41,13 @@ mailServer: localhost
 sender: mcahn@princeton
 
 # A comma-separated list of people who should get email when a failure or a recovery is detetected.
-recipients: [mcahn@princeton.edu, matthew.cahn@gmail.com]
+# No tabs allowed in yaml files!!!
+recipients: [mcahn@princeton.edu,
+             glaevsky@princeton.edu,
+             cdecoste@princeton.edu,
+             kr7@princeton.edu,
+             azerdoum@princeton.edum,
+             ilab-support@agilent.com]
 
 # How many times to check the interlock control and web site (0 means run forever)
 iterations: 0
