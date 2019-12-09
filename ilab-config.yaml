@@ -54,13 +54,13 @@ wait: 60
 failureLimit: 5
 
 # The filename containing a list of the hostnames or IP addresses of your interlocks
-lockDeviceFile: /usr/local/etc/ilabsInterlockDevices
+lockDeviceFile: /usr/local/etc/ilabInterlockDevices
 
 # The directory to contains the logs for this monitor
-logDirectory: /var/log/ilabs
+logDirectory: /var/log/ilab
 
 # The file to contain the logs
-logFile: ilabsMonitor.log
+logFile: ilabMonitor.log
 
 # For debugging, these filenames will be the saved HTML for the web pages above,
 # if either HTML saving is turned on in the code, or if logging in fails.

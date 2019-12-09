@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-'''Monitor the iLabs URL and port that is used to turn on the interlock
-devices.  This is the URL and port that the iLabs bridge talks to.
+'''Monitor the iLab URL and port that is used to turn on the interlock
+devices.  This is the URL and port that the iLab bridge talks to.
 
 If we cannot connect for a certain number of consecutive attempts,
 turn all the interlock devices on, and send an email.  If the connection
@@ -17,7 +17,7 @@ from email.message import EmailMessage
 import smtplib
 import requests
 
-import ilabsWeb
+import ilabWeb
 import ilock
 
 dateFormat = '%Y-%m-%d %H:%M:%S'
@@ -139,7 +139,7 @@ def getLockDevices(lockDeviceFile):
     return lockDevices
 
 def handleOutage(mailServer, sender, recipients, progName, statusMsgs):
-    subject = 'iLabs check %s' % statusWord[False]
+    subject = 'iLab check %s' % statusWord[False]
     emailMsgs = statusMsgs[:]
     emailMsgs.append('Turning on interlocks.')
     for emailMsg in emailMsgs:
@@ -153,7 +153,7 @@ def handleOutage(mailServer, sender, recipients, progName, statusMsgs):
     sendEmail(mailServer, sender, recipients, progName, subject, emailMsgs)
 
 def handleRecovery(mailServer, sender, recipients, progName, statusMsgs):
-    subject = 'iLabs check %s' % statusWord[True]
+    subject = 'iLab check %s' % statusWord[True]
     for statusMsg in statusMsgs:
         logger.info(statusMsg)
     sendEmail(mailServer, sender, recipients, progName, subject, statusMsgs)
@@ -179,7 +179,7 @@ def checkService(config, iterations):
 
             if webSiteOk:
                 try:
-                    loginOk = ilabsWeb.loginWorks(config, logger, saveHTML=config.saveHTML)
+                    loginOk = ilabWeb.loginWorks(config, logger, saveHTML=config.saveHTML)
                 except Exception as err:
                     logger.error('Error in loginWorks()')
                     logger.error(err)
@@ -247,7 +247,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='%s' % __doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('-c', '--config', default='ilabs-config.yaml', help='Configuration file')
+    parser.add_argument('-c', '--config', default='ilab-config.yaml', help='Configuration file')
 
     parser.add_argument('-v', '--verbose', action='store_true', help='Turn on debug messages.')
     
