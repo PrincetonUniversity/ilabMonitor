@@ -35,14 +35,17 @@ timeout: 10
 # How many seconds to try to keep the ilockurl open (null means don't keep it open)
 openSecs: null
 
+# The SMTP mail server through which to send mail
+mailServer: localhost
+
 # Who the failure or recovery email is from
 sender: mcahn@princeton
 
 # A comma-separated list of people who should get email when a failure or a recovery is detetected.
-recipients: [mcahn@princeton.edu, matthew.cahn@gmail.com]
+recipients: [mcahn@princeton.edu]
 
 # How many times to check the interlock control and web site (0 means run forever)
-iterations: 3
+iterations: 4
 
 # How many seconds to wait between checks
 wait: 10
@@ -54,7 +57,7 @@ failureLimit: 2
 lockDeviceFile: ilabsInterlockDevices
 
 # The directory to contains the logs for this monitor
-logDirectory: /molbio2/mcahn/ilabs-dev
+logDirectory: /molbio2/mcahn/ilabs
 
 # The file to contain the logs
 logFile: ilabsMonitor.log
@@ -66,4 +69,4 @@ loginResponseFile: ilab-login-response
 loggedInFile: ilab-logged-in-page
 
 # For debugging, save the HTML from the web pages
-saveHTML: true
+saveHTML: false
