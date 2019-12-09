@@ -62,7 +62,7 @@ def loginWorks(config, logger, saveHTML=False):
         return False
 
     if config.successMsg in loginResponse.text:
-        logger.info('Found "%s" in response to login.', config.successMsg)
+        logger.debug('Found "%s" in response to login.', config.successMsg)
     else:
         logger.error('Failed to find "%s" in response to login.', config.successMsg)
         

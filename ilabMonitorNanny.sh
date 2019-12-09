@@ -17,10 +17,8 @@ if [[ -z $pid ]]; then
     tail -1 $nanny_logfile | mail -s "iLab monitor restarted" mcahn@princeton.edu
 
     cd $dir
-    nohup ilabMonitor.py --config ilab-config-test.yaml --verbose > $monitor_stdout 2>&1 &
+    nohup ilabMonitor.py --config ilab-config.yaml > $monitor_stdout 2>&1 &
     
-    ## nohup ilabsMonitor.py -r mcahn@princeton.edu -r glaevsky@princeton.edu -r cdecoste@princeton.edu -r kr7@princeton.edu -r azerdoum@princeton.edu -r ilab-support@agilent.com> $monitor_stdout 2>&1 &
-
 else
     words=( $pid )
     if [ ${#words[@]} == 1 ]; then
