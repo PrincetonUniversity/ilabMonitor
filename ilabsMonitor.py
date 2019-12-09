@@ -20,27 +20,11 @@ import requests
 import ilabsWeb
 import ilock
 
-defaultUrl = 'kiosk-access.ilabsolutions.com'
-defaultPort = 22
-
-defaultWebSite = 'https://princeton.corefacilities.org/service_center/show_external/4042?name=confocal-imaging-facility'
-defaultExpectedText = 'Confocal Imaging Facility'
-
-defaultTimeoutSecs = 10
-defaultOpenSocketSecs = None
-defaultSender = 'mcahn@princeton.edu'
-defaultRecipients = ['mcahn@princeton.edu']
-defaultIterations = 0   # Forever-ish
-defaultFailureLimit = 5
-defaultWaitSecs = 60.0
-defaultLockDeviceFile = '/usr/local/etc/ilabsInterlockDevices'
-defaultLogFile = '/var/log/ilabs/ilabsMonitor.log'
-
 dateFormat = '%Y-%m-%d %H:%M:%S'
 
 statusWord = {True : 'SUCCESSFUL', False : 'FAILED'} 
 
-def checkConnection(url, port, timeout, opensecs):
+def checkConnection(url, port, timeout, openSecs):
     '''Try a connection to url on port.'''
     
     if timeout is not None:
@@ -50,8 +34,8 @@ def checkConnection(url, port, timeout, opensecs):
     try:
         logger.debug('Connecting to %s on port %s', url, port)
         s.connect((url, port))
-        if opensecs is not None:
-            time.sleep(opensecs)
+        if openSecs is not None:
+            time.sleep(openSecs)
         s.shutdown(socket.SHUT_RDWR)
         s.close()
         return True
@@ -78,7 +62,7 @@ def sendEmail(sender, recipients, progName, subject, statusMsgs):
     msg = EmailMessage()
     msg['Subject'] = subject
     msg['To'] = ', '.join(recipients)
-    msg['From'] = args.sender
+    msg['From'] = config.sender
 
     body = ['This is an automated message from %s running on %s.' % (progName, socket.getfqdn()), '']
     body.extend(statusMsgs)
@@ -90,7 +74,7 @@ def sendEmail(sender, recipients, progName, subject, statusMsgs):
     s.quit()
 
 def turnOnInterlocks():
-    lockDevices = getLockDevices(args.lockdevicefile)
+    lockDevices = getLockDevices(config.lockDeviceFile)
     for lockDevice, numOutlets in lockDevices:
         logger.info('ilock devices: %s (%d outlets)', lockDevice, numOutlets)
 
@@ -174,7 +158,7 @@ def handleRecovery(sender, recipients, progName, statusMsgs):
         logger.info(statusMsg)
     sendEmail(sender, recipients, progName, subject, statusMsgs)
 
-def checkService(args):
+def checkService(config, iterations):
     consecNotOk = {'ilock': 0, 'website': 0, 'login': 0}
     handledOutage = False
 
@@ -182,7 +166,7 @@ def checkService(args):
         logger.info('Iteration: %d', x)
 
         try:
-            ilockOk = checkConnection(args.url, args.port, args.timeout, args.opensecs)
+            ilockOk = checkConnection(config.ilockurl, config.ilockport, config.timeout, config.openSecs)
         except Exception as err:
             logger.error('Error in checkConnection()')
             logger.error(err)
@@ -191,17 +175,17 @@ def checkService(args):
         logger.debug('ilockOk: %s', ilockOk)
 
         try:
-            webSiteOk = checkWebSite(args.website, args.text, args.timeout)
+            webSiteOk = checkWebSite(config.website, config.expectedText, config.timeout)
 
             if webSiteOk:
                 try:
-                    loginOk = ilabsWeb.loginWorks(logger)
+                    loginOk = ilabsWeb.loginWorks(config, logger, saveHTML=config.saveHTML)
                 except Exception as err:
                     logger.error('Error in loginWorks()')
                     logger.error(err)
                     loginOk = False
             else:
-                loginOk = False
+                loginOk = True
         except Exception as err:
             logger.error('Error in checkWebSite()')
             logger.error(err)
@@ -221,8 +205,7 @@ def checkService(args):
             # If there was an outage, send an email after the first successful connection.
             if handledOutage:
                 statusMsgs = ['The interlock control and the iLab web site are up.']
-                ## statusMsg = '%s Connection to %s on port %s %s.' % (dt.strftime(dateFormat), args.url, args.port, statusWord[ok])
-                handleRecovery(args.sender, args.recipient, parser.prog, statusMsgs)
+                handleRecovery(config.sender, config.recipients, parser.prog, statusMsgs)
             handledOutage = False
         else:
             if not ilockOk:
@@ -238,74 +221,55 @@ def checkService(args):
         statusFmt2 = 'Web site should contain "%s", %s.  Consecutive failures: %d'
         statusFmt3 = 'Logging into web site %s.  Consecutive failures: %d'
         statusMsgs = []
-        statusMsgs.append(statusFmt1 % (args.url, args.port, statusWord[ilockOk], consecNotOk['ilock']))
-        statusMsgs.append(statusFmt2 % (args.text, statusWord[webSiteOk], consecNotOk['website']))
+        statusMsgs.append(statusFmt1 % (config.ilockurl, config.ilockport, statusWord[ilockOk], consecNotOk['ilock']))
+        statusMsgs.append(statusFmt2 % (config.expectedText, statusWord[webSiteOk], consecNotOk['website']))
         statusMsgs.append(statusFmt3 % (statusWord[loginOk], consecNotOk['login']))
         
         # If we have reached the failure limit, turn on the interlock devices and send an email.
-        # Not that if the web site didn't answer with the right text, then we didn't try to log in,
-        # and assumed that logging in won't work.
         
-        if consecNotOk['ilock'] + consecNotOk['login'] >= args.failure_limit and not handledOutage:
-            handleOutage(args.sender, args.recipient, parser.prog, statusMsgs)
+        if (consecNotOk['ilock'] >= config.failureLimit or consecNotOk['website'] >= config.failureLimit or consecNotOk['login'] >= config.failureLimit) and not handledOutage:
+            handleOutage(config.sender, config.recipients, parser.prog, statusMsgs)
             handledOutage = True
         else:
             for statusMsg in statusMsgs:
                 logger.info(statusMsg)
-        time.sleep(args.wait)
+        time.sleep(config.wait)
 
 if __name__ == '__main__':
     import argparse
     import logging
     from logging import handlers
 
+    import yaml
+    import collections
+
     os.environ['COLUMNS'] = '150'     # For argparse --help
 
     parser = argparse.ArgumentParser(description='%s' % __doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('-u', '--url', default=defaultUrl, help='Interlock control URL (or IP address) to check.')
-    
-    parser.add_argument('-p', '--port', type=int, default=defaultPort, help='Port to check.')
-    
-    parser.add_argument('--website', default=defaultWebSite, help='Web site URL to check (must start with http[s]:)')
-    
-    parser.add_argument('--text', default=defaultExpectedText, help='Text to expect on web site')
-
-    parser.add_argument('-t', '--timeout', type=float, default=defaultTimeoutSecs, help='Socket timeout in seconds.')
-
-    parser.add_argument('-o', '--opensecs', type=float, default=defaultOpenSocketSecs, help='Keep socket open for this many seconds.')
-
-    parser.add_argument('-s', '--sender', default=defaultSender, help='Mail "From" address.')
-
-    parser.add_argument('-r', '--recipient', action='append', default=defaultRecipients,
-                help='Email "To" address (may be specified multiple times).')
-
-    parser.add_argument('-i', '--iterations', type=int, default=defaultIterations, help='Number of iterations (0 = run forever).')
-
-    parser.add_argument('-w', '--wait', type=float, default=defaultWaitSecs, help='Wait time between tries in seconds.')
-
-    parser.add_argument('-f', '--failure_limit', type=int, default=defaultFailureLimit, help='Turn on interlocks after this many failures.')
-
-    parser.add_argument('-l', '--lockdevicefile', default=defaultLockDeviceFile,
-                        help='File listing interlock device host names, one per line.')
-
-    parser.add_argument('--logfile', default=defaultLogFile, help='Log file name.')
+    parser.add_argument('-c', '--config', default='ilabs-config.yaml', help='Configuration file')
 
     parser.add_argument('-v', '--verbose', action='store_true', help='Turn on debug messages.')
     
     args = parser.parse_args()
 
-    if args.iterations > 0:
-        iterations = args.iterations
-    else:
-        iterations = 1024 ** 3
+    configFile = open(args.config)
+    
+    configDict = yaml.load(configFile)
 
+    configFile.close()
+
+    config = collections.namedtuple('Config', configDict.keys())(*configDict.values())
+    
     logger = logging.getLogger(parser.prog)
     if args.verbose:
         logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.INFO)
-    fh = handlers.RotatingFileHandler(args.logfile, maxBytes=10*1024*1024, backupCount=100)
+    
+    logPathname = os.path.join(config.logDirectory, config.logFile)
+    
+    fh = handlers.RotatingFileHandler(logPathname, maxBytes=10*1024*1024, backupCount=100)
     fileFormatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s', datefmt=dateFormat)
     fh.setFormatter(fileFormatter)
     logger.addHandler(fh)
@@ -313,7 +277,16 @@ if __name__ == '__main__':
         fh.setLevel(logging.DEBUG)
     else:
         fh.setLevel(logging.INFO)
-        
-    checkService(args)
+
+    logger.debug('Configuration parameters:')
+    for k, v in config._asdict().items():
+        logger.debug('%-20s: %s', k, v)
+
+    if config.iterations > 0:
+        iterations = config.iterations
+    else:
+        iterations = 1024 ** 3
+    
+    checkService(config, iterations)
 
     sys.exit(1)

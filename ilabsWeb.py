@@ -8,39 +8,27 @@ import lxml.html
 import datetime
 import logging
 
-username = 'matthew.cahn@gmail.com'
-password = '2Monitor|Not'
 
-data={'login': username,
-      'password': password}
-
-loginPage = 'https://princeton.corefacilities.org/account/login#'
-loggedInPage = 'https://princeton.corefacilities.org'
-
-successMsg = 'Logged in successfully'
-
-logDir = '/var/log/ilabs'
-loginPageFilename = 'ilab-login-page'
-loginResponseFilename = 'ilab-login-response'
-loggedInFilename = 'ilab-logged-in-page'
-
-def loginWorks(logger, saveHTML=False):
+def loginWorks(config, logger, saveHTML=False):
     '''Return True or False depending on whether we can log into iLab.
     If saveHTML is True, the HTML from the iLab pages will be saved.  Otherwise
     only response to the login attempt will be saved, and only if it fails.'''
 
-    logger.debug('Trying to log into %s as %s', loginPage, username)
+    data={'login': config.username,
+          'password': config.password}
+
+    logger.debug('Trying to log into %s as %s', config.loginPage, config.username)
     
     timeStamp = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d-%H%M%S')
 
-    loginPagePathname = '{}_{}'.format(os.path.join(logDir, loginPageFilename), timeStamp)
-    loginResponsePathname  = '{}_{}'.format(os.path.join(logDir, loginResponseFilename), timeStamp)
-    loggedInPathname  = '{}_{}'.format(os.path.join(logDir, loggedInFilename), timeStamp)
+    loginPagePathname = '{}_{}'.format(os.path.join(config.logDirectory, config.loginPageFile), timeStamp)
+    loginResponsePathname  = '{}_{}'.format(os.path.join(config.logDirectory, config.loginResponseFile), timeStamp)
+    loggedInPathname  = '{}_{}'.format(os.path.join(config.logDirectory, config.loggedInFile), timeStamp)
     
     s = requests.session()
 
     try:
-        loginPageResponse = s.get(loginPage)
+        loginPageResponse = s.get(config.loginPage)
     except requests.exceptions.ConnectionError as err:
         logger.error(err)
         return False
@@ -68,17 +56,17 @@ def loginWorks(logger, saveHTML=False):
     # Log in.  The response should contain the successMsg
 
     try:
-        loginResponse = s.post(loginPage, data=form)
+        loginResponse = s.post(config.loginPage, data=form)
     except requests.exceptions.ConnectionError as err:
         logger.error(err)
         return False
 
-    if successMsg in loginResponse.text:
-        logger.info('Found "%s" in response to login.', successMsg)
+    if config.successMsg in loginResponse.text:
+        logger.info('Found "%s" in response to login.', config.successMsg)
     else:
-        logger.error('Failed to find "%s" in response to login.', successMsg)
+        logger.error('Failed to find "%s" in response to login.', config.successMsg)
         
-    if not successMsg in loginResponse.text or saveHTML:
+    if not config.successMsg in loginResponse.text or saveHTML:
         f = open(loginResponsePathname, 'w')
         f.write(loginResponse.text)
         f.close()
@@ -88,7 +76,7 @@ def loginWorks(logger, saveHTML=False):
 
     if saveHTML:
         try:
-            loggedInResponse = s.get(loggedInPage)
+            loggedInResponse = s.get(config.loggedInPage)
         except requests.exceptions.ConnectionError as err:
             logger.error(err)
             return False
@@ -97,7 +85,7 @@ def loginWorks(logger, saveHTML=False):
         f.write(loggedInResponse.text)
         f.close()
 
-    return successMsg in loginResponse.text
+    return config.successMsg in loginResponse.text
 
 if __name__ == '__main__':
 
