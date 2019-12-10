@@ -56,7 +56,7 @@ failureLimit: 2
 lockDeviceFile: ilabInterlockDevices
 
 # The directory to contains the logs for this monitor
-logDirectory: /molbio2/mcahn/ilabs
+logDirectory: /molbio2/mcahn/ilabsMonitor
 
 # The file to contain the logs
 logFile: ilabMonitor.log
