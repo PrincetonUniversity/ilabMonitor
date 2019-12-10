@@ -11,3 +11,14 @@ The program monitors:
 * Is the iLab web site running?
 * Can a user log in to the iLab web site?
 If any of these fail, the program will turn on your interlocks.
+
+## Requirements
+
+* Python 3.x -- The program has been tested with Python 3.5.2.  It should work with any version of Python 3.x.  It will not work with Python 2.x.
+* Operating sytem -- The program has been run under Red Hat Enterprise Linux versions 6 and 7.  It should work under any operating system that can run Python.
+* Interlocks -- The program can control the interlocks made by Synaccess.
+* The system that runs the monitor must be able to:
+  * Communicate with the iLab interlock control which is at kiosk-access.ilabsolutions.com on port 22 (the SSH) port.
+  * Communicate with the interlocks in your facility on port 23 (the telnet port).
+  * Browse the iLab web site with https (port 443).
+  
