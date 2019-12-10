@@ -11,7 +11,7 @@ The program monitors:
 * Is the iLab web site running?
 * Can a user log in to the iLab web site?
 
-If any of these fail, the program will turn on your interlocks.
+If any of these fail, the program will turn on your interlocks so your users can use the instruments in your facility. It sends an email to notify you of the outage, and another email when the problem is resolved.  (Note that the monitor does not turn off your interlocks when the problem is resolved, because it does not know which interlocks should be on or off).
 
 ## Requirements
 
