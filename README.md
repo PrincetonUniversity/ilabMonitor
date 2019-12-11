@@ -22,4 +22,7 @@ If any of these fail, the program will turn on your interlocks so your users can
   * Communicate with the iLab interlock control which is at kiosk-access.ilabsolutions.com on port 22 (the SSH) port.
   * Communicate with the interlocks in your facility on port 23 (the telnet port).
   * Browse the iLab web site with https (port 443).
+  * Communicate with an SMTP mail server.  If the system running the monitor is running a mail server process, such as Postfix, the mail server can be "localhost".
+* An **external** iLab account -- You will need an account and password for the test of whether users can log into the iLab web site.  This must be an external account, that is it must use the login screen for iLab, and not communicate back to your institution for authentication.  This will probably be an "independent user", that is, one who is not a member of your institution.
+
   
