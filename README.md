@@ -32,7 +32,7 @@ If any of these fail, the program will turn on your interlocks so your users can
 * Customize files for your institution and installation:
   * ilab-config.yaml -- This configuration file contains parameters such as how often to check the iLab services, how many failures to allow before turning on the interlocks, and the email addresses that should be notified in the event of a failure and recovery.  Edit this file and change the parameters as needed.  The is in YAML format, which is fairly obvious.  (No tabs allowed!)  There is a version of this file called ilab-config-test.yaml.  Use this for testing your installation.
   * ilabMonitorNanny.sh -- This file can be used to check if the monitor is running and start it if it isn't.  You will have to modify this file for your environment.  There is a version called ilabMonitorNanny-test.sh that you can use for testing.  (It uses the test version of the configuration file).
-  * ilabInterlockDevices -- This is a list of the host names or IP addresses of your interlock devices.  There are two columns: the hostname or IP address, and the number of outlets on the interlock device.  These must be separated by a TAB.  There is a version of this file called ilabMonitorNanny-test.sh that you can use for testing.  (The test version of the configuration file references it).
+  * ilabInterlockDevices -- This is a list of the host names or IP addresses of your interlock devices.  There are two columns: the hostname or IP address, and the number of outlets on the interlock device.  These must be separated by a TAB.  There is a version of this file called ilabInterlockDevices-test that you can use for testing.  (The test version of the configuration file references it).
 * Create the log directory, which is specified in ilab-config.yaml (currently /var/log/ilab).  Be sure this directory has read/write/search (rwx under Linux) permission for the user that will be running the monitor.
 * Other files:
   * echoServer.py -- this script listens on a port.  You can run this to simulate the iLab interlock control port, and quit it (with control-c) to simulate a failure.
@@ -41,9 +41,9 @@ If any of these fail, the program will turn on your interlocks so your users can
  
 Customize the files described above.  To simluate everything working:
 
-* Change "ilockurl" and "ilock" port in ilab-config-test to match echoServer.py.  The default is that it runs on the same machine as the monitor, and listens on port 8080.
+* Change "ilockurl" and "ilock" port in ilab-config-test to match echoServer.py.  The default is that echoServer.py runs on the same machine as the monitor (so ilockurl would be localhost), and listens on port 8080.
 * Change "website" and "expectedText" to a URL you can browse, and some text that web site is expected to contain.
-* Change "username" and "password" to the correct external user for iLab.
+* Change "username" and "password" to the correct external user and password for iLab.
 
 Assuming your are using a Linux system, run the echo server to simulate the iLab interlock control:
  ```
@@ -60,6 +60,11 @@ Assuming your are using a Linux system, run the echo server to simulate the iLab
  tail -f ilabMonitor.log
  ```
  
- You can simulate a failure by quitting the echo server (type control-c).  If you have edit access to the web site specified by the "website" parameter in the config ifle, you can delete the "expectedText" from the web site.  After you have reached the allowed number of failures ("failureLImit" in the config file), you can similute a recovery by starting the echo server again and/or putting the expected text back on the web site.
+ You can simulate a failure by quitting the echo server (type control-c).  If you have edit access to the web site specified by the "website" parameter in the config ifle, you can delete the "expectedText" from the web site.  After you have reached the allowed number of failures ("failureLImit" in the config file), you can similute a recovery by starting the echo server again and/or putting the expected text back on the web site.  When there is a failure, all the interlocks listed in ilabInterlockDevices-test should go on.  The log file will list how many devices were turned on, were already on, or could not be turned on.  When there is a recovery, another email is sent.
+ 
+ ## Production
+ 
+ Under Linux you can use crontab to periodically run ilabMonitorNanny.sh to check that the monitor is running, and to start it if it isn't.
+ 
  
   
