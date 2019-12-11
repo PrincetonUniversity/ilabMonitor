@@ -2,7 +2,7 @@
 
 export PATH=".:/molbio2/mcahn/anaconda3-python3.5.2/bin:$PATH"
 
-dir=/molbio2/mcahn/ilabsMonitor
+dir=/molbio2/mcahn/ilabMonitor
 
 monitor_stdout=/var/log/ilab/ilabMonitor-stdout-test.log
 nanny_logfile=/var/log/ilab/ilabMonitorNanny-test.log

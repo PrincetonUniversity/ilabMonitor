@@ -59,7 +59,7 @@ wait: 60
 failureLimit: 5
 
 # The filename containing a list of the hostnames or IP addresses of your interlocks
-lockDeviceFile: /usr/local/etc/ilabInterlockDevices
+lockDeviceFile: ilabInterlockDevices
 
 # The directory to contains the logs for this monitor
 logDirectory: /var/log/ilab

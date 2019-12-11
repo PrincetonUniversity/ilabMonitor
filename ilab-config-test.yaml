@@ -53,10 +53,10 @@ wait: 10
 failureLimit: 2
 
 # The filename containing a list of the hostnames or IP addresses of your interlocks
-lockDeviceFile: ilabInterlockDevices
+lockDeviceFile: ilabInterlockDevices-test
 
 # The directory to contains the logs for this monitor
-logDirectory: /molbio2/mcahn/ilabsMonitor
+logDirectory: /molbio2/mcahn/ilabMonitor
 
 # The file to contain the logs
 logFile: ilabMonitor.log
